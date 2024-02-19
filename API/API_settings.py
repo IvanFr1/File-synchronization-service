@@ -1,6 +1,8 @@
-# from config_data.config import token_api, local_path
-# import requests
-#
-# url = 'https://cloud-api.yandex.net/v1/disk/resources'
-# headers = {'Content-Type': 'application/json', 'Accept': 'application/json', 'Authorization': f'OAuth {token_api}'}
+import os
+import requests
 
+
+class YandexDiskConnector:
+    def __init__(self, token_api, remove_path):
+        self.token_api = token_api
+        self.remove_path = remove_path
