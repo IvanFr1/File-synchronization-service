@@ -1,13 +1,11 @@
 import os
 import requests
-from config_data.config import local_path
-
+from config_data.config import token_api, remove_path, local_path
 
 class YandexDiskConnector:
     def __init__(self, token_api, remove_path):
         self.token_api = token_api
         self.remove_path = remove_path
-        self.local_path = local_path
         self.initial_url = 'https://cloud-api.yandex.net/v1/disk'
 
     def _get_headers(self):
@@ -41,7 +39,8 @@ class YandexDiskConnector:
             local_path = os.path.join(local_directory, local_file)
 
             try:
-                response = requests.get(f'{self.initial_url}/resources/upload?path={self.remove_path}/{local_file}',
+                response = requests.get(f'{self.initial_url}/resources/upload?path={self.remove_path}/'
+                                        f'{local_file}&overwrite=true',
                                         headers=headers)
                 response.raise_for_status()
 
@@ -56,7 +55,7 @@ class YandexDiskConnector:
 
     def delete_file(self, file_name):
         headers = self._get_headers()
-        encoded_file_name = file_name.replace(" ", "%20")  # Если в имени файла есть пробелы
+        encoded_file_name = file_name.replace(" ", "%20")
 
         url = f"{self.initial_url}/resources?path={self.remove_path}/{encoded_file_name}"
 
@@ -69,29 +68,19 @@ class YandexDiskConnector:
         except requests.exceptions.RequestException as e:
             print(f"Error during file deletion: {e}")
 
-#     def update_file(self, file_name):
-#         headers = self._get_headers()
-#
-#         try:
-#             # Читаем содержимое файла
-#             with open(os.path.join(self.local_path, file_name), 'rb') as file:
-#                 file_content = file.read()
-#
-#             # Отправляем PUT-запрос для обновления файла напрямую на Яндекс Диск
-#             url = f"{self.initial_url}/resources/upload"
-#             params = {
-#                 "path": f"{self.remove_path}/{file_name}",
-#                 "overwrite": "true"  # Указываем, что мы хотим перезаписать существующий файл
-#             }
-#             response = requests.put(url, headers=headers, params=params, data=file_content)
-#             response.raise_for_status()
-#
-#             print(f"File {file_name} updated successfully on Yandex Disk.")
-#
-#         except requests.exceptions.RequestException as e:
-#             print(f"Error during file update: {e}")
-#
-#
-# result = YandexDiskConnector(token_api, remove_path)
-#
-# print(result.update_file('tytyt.txt'))
+    def update_file(self, local_file_path, file_name):
+        try:
+            self.delete_file(file_name)
+
+            self.upload_files_in_directory(local_file_path)
+
+            print(f"File {file_name} overwritten successfully on Yandex Disk.")
+
+        except requests.exceptions.RequestException as e:
+            print(f"Error during file update: {e}")
+
+
+# connector = YandexDiskConnector(token_api, remove_path)
+# print(connector.upload_files_in_directory(local_path))
+# print(connector.update_file(local_path, 'tytyt.txt'))
+# print(connector.get_cloud_files_info())
