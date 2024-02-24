@@ -1,6 +1,7 @@
 import os
+from datetime import datetime, timezone, timedelta
 import requests
-from config_data.config import token_api, remove_path, local_path
+
 
 class YandexDiskConnector:
     def __init__(self, token_api, remove_path):
@@ -23,35 +24,35 @@ class YandexDiskConnector:
             for file_info in files_info:
                 name = file_info.get('name')
                 created = file_info.get('created')
-
-                filtered_info[name] = created
+                utc_time = datetime.strptime(created, '%Y-%m-%dT%H:%M:%S%z')
+                local_datetime = utc_time.astimezone(timezone(timedelta(hours=3)))
+                filtered_info[name] = local_datetime
 
             return filtered_info
         else:
             return []
 
-    def upload_files_in_directory(self, local_directory):
+    def upload_file(self, local_file_path):
         headers = self._get_headers()
-        local_files = [f for f in os.listdir(local_directory) if os.path.isfile(os.path.join(local_directory, f))]
 
-        for local_file in local_files:
+        local_file_name = os.path.basename(local_file_path)
 
-            local_path = os.path.join(local_directory, local_file)
+        try:
+            response = requests.get(
+                f'{self.initial_url}/resources/upload?path={self.remove_path}/{local_file_name}&overwrite=true',
+                headers=headers)
+            response.raise_for_status()
 
-            try:
-                response = requests.get(f'{self.initial_url}/resources/upload?path={self.remove_path}/'
-                                        f'{local_file}&overwrite=true',
-                                        headers=headers)
+            upload_url = response.json()['href']
+
+            with open(local_file_path, 'rb') as file:
+                response = requests.put(upload_url, files={'file': file})
                 response.raise_for_status()
 
-                upload_url = response.json()['href']
+            print(f'File {local_file_name} uploaded successfully')
 
-                with open(local_path, 'rb') as file:
-                    response = requests.put(upload_url, files={'file': file})
-                    response.raise_for_status()
-
-            except requests.exceptions.RequestException as e:
-                print(f"Error during file upload: {e}")
+        except requests.exceptions.RequestException as e:
+            print(f"Error during file upload: {e}")
 
     def delete_file(self, file_name):
         headers = self._get_headers()
@@ -72,15 +73,9 @@ class YandexDiskConnector:
         try:
             self.delete_file(file_name)
 
-            self.upload_files_in_directory(local_file_path)
+            self.upload_file(local_file_path)
 
             print(f"File {file_name} overwritten successfully on Yandex Disk.")
 
         except requests.exceptions.RequestException as e:
             print(f"Error during file update: {e}")
-
-
-# connector = YandexDiskConnector(token_api, remove_path)
-# print(connector.upload_files_in_directory(local_path))
-# print(connector.update_file(local_path, 'tytyt.txt'))
-# print(connector.get_cloud_files_info())
